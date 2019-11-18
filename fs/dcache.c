@@ -743,7 +743,7 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	dname[name->len] = 0;
 
 	atomic_set(&dentry->d_count, 1);
-	dentry->d_flags = DCACHE_UNHASHED;//默认未hash
+	dentry->d_flags = DCACHE_UNHASHED;//默认未hash 表示未插入到hash表中
 	spin_lock_init(&dentry->d_lock);
 	dentry->d_inode = NULL;
 	dentry->d_parent = NULL;
@@ -891,7 +891,9 @@ struct dentry * d_alloc_root(struct inode * root_inode)
 	}
 	return res;
 }
-
+/**
+ * 根据父dentry指针以及自身hash值 再次计算hash 获得链表头
+ */
 static inline struct hlist_head *d_hash(struct dentry *parent,
 					unsigned long hash)
 {
@@ -1039,7 +1041,9 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
  * d_lookup() is protected against the concurrent renames in some unrelated
  * directory using the seqlockt_t rename_lock.
  */
-
+/**
+ * 获得重命名锁
+ */
 struct dentry * d_lookup(struct dentry * parent, struct qstr * name)
 {
 	struct dentry * dentry = NULL;
@@ -1053,7 +1057,9 @@ struct dentry * d_lookup(struct dentry * parent, struct qstr * name)
 	} while (read_seqretry(&rename_lock, seq));
 	return dentry;
 }
-
+/**
+ * 没有获得重命名锁
+ */
 struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 {
 	unsigned int len = name->len;

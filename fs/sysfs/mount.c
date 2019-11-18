@@ -42,7 +42,7 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &sysfs_ops;
 	sb->s_time_gran = 1;
 	sysfs_sb = sb;
-
+	//创建inode对象 并且挂在到super_block中
 	inode = sysfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
 				 &sysfs_root);
 	if (inode) {
@@ -54,7 +54,7 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 		pr_debug("sysfs: could not get root inode\n");
 		return -ENOMEM;
 	}
-
+	//创建dentry对象
 	root = d_alloc_root(inode);
 	if (!root) {
 		pr_debug("%s: could not get root dentry!\n",__FUNCTION__);
@@ -78,6 +78,9 @@ static struct file_system_type sysfs_fs_type = {
 	.kill_sb	= kill_litter_super,
 };
 
+/**
+ * sysfs文件系统初始化
+ */
 int __init sysfs_init(void)
 {
 	int err = -ENOMEM;
@@ -88,9 +91,9 @@ int __init sysfs_init(void)
 	if (!sysfs_dir_cachep)
 		goto out;
 
-	err = register_filesystem(&sysfs_fs_type);
+	err = register_filesystem(&sysfs_fs_type);//注册文件系统 插入到全局链表file_systems
 	if (!err) {
-		sysfs_mount = kern_mount(&sysfs_fs_type);
+		sysfs_mount = kern_mount(&sysfs_fs_type);//创建mount信息
 		if (IS_ERR(sysfs_mount)) {
 			printk(KERN_ERR "sysfs: could not mount!\n");
 			err = PTR_ERR(sysfs_mount);

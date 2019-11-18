@@ -452,7 +452,9 @@ static void __init boot_cpu_init(void)
 void __init __attribute__((weak)) smp_setup_processor_id(void)
 {
 }
-
+/**
+ * 内核启动 函数
+ */
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;

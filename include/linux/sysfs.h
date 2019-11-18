@@ -64,7 +64,9 @@ struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *,char *);
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
 };
-
+/**
+ * 专用于sysfs文件系统dirent对象
+ */
 struct sysfs_dirent {
 	atomic_t		s_count;
 	struct list_head	s_sibling;

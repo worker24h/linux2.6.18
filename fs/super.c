@@ -303,10 +303,10 @@ retry:
 	}
 	if (!s) {
 		spin_unlock(&sb_lock);
-		s = alloc_super(type);
+		s = alloc_super(type);//创建一个新的super block对象
 		if (!s)
 			return ERR_PTR(-ENOMEM);
-		goto retry;
+		goto retry;//避免被其他线程创建了
 	}
 		
 	err = set(s, data);
@@ -794,13 +794,13 @@ int get_sb_single(struct file_system_type *fs_type,
 {
 	struct super_block *s;
 	int error;
-
+	/* 获取super_block并且插入到全局链表中 */
 	s = sget(fs_type, compare_single, set_anon_super, NULL);
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 	if (!s->s_root) {//表示是新的super_block
 		s->s_flags = flags;
-		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
+		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);//创建根dentry和根inode
 		if (error) {
 			up_write(&s->s_umount);
 			deactivate_super(s);
@@ -809,7 +809,7 @@ int get_sb_single(struct file_system_type *fs_type,
 		s->s_flags |= MS_ACTIVE;
 	}
 	do_remount_sb(s, flags, data, 0);
-	return simple_set_mnt(mnt, s);
+	return simple_set_mnt(mnt, s);//超级块和vfsmount两者相互关联
 }
 
 EXPORT_SYMBOL(get_sb_single);
@@ -846,7 +846,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
  	error = security_sb_kern_mount(mnt->mnt_sb, secdata);
  	if (error)
  		goto out_sb;
-	//由于是新的vfsmount 所以下面两个遍历指向自己 带真正挂载的时候 才会指向目标文件系统
+	//由于是新的vfsmount 所以下面两个遍历指向自己 待真正挂载的时候 才会指向目标文件系统
 	mnt->mnt_mountpoint = mnt->mnt_root;
 	mnt->mnt_parent = mnt;
 	up_write(&mnt->mnt_sb->s_umount);

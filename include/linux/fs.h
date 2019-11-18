@@ -871,7 +871,7 @@ struct super_block {
 	struct export_operations *s_export_op;
 	unsigned long		s_flags;
 	unsigned long		s_magic;
-	struct dentry		*s_root;
+	struct dentry		*s_root;/* 文件系统根dentry对象 */
 	struct rw_semaphore	s_umount;
 	struct mutex		s_lock;
 	int			s_count;

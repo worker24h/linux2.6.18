@@ -1267,7 +1267,12 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 	return __lookup_hash(&nd->last, nd->dentry, nd);
 }
 
-/* SMP-safe name要查找dentry base是从这里开始查找 len代表name长度 */
+/**
+ * SMP-safe 
+ * @name 要查找dentry 
+ * @base 父dentry对象，即基于父dentry进行查找 
+ * @len代表name长度 
+ */
 struct dentry * lookup_one_len(const char * name, struct dentry * base, int len)
 {
 	unsigned long hash;

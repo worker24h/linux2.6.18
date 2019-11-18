@@ -58,7 +58,9 @@ static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
 	tmp = tmp + (tmp >> hash_bits);
 	return tmp & hash_mask;
 }
-
+/**
+ * 创建vfsmount
+ */
 struct vfsmount *alloc_vfsmnt(const char *name)
 {
 	struct vfsmount *mnt = kmem_cache_alloc(mnt_cache, GFP_KERNEL);
@@ -85,6 +87,9 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 	return mnt;
 }
 
+/**
+ * 将超级块以及根dentry赋值给vfsmount对象
+ */
 int simple_set_mnt(struct vfsmount *mnt, struct super_block *sb)
 {
 	mnt->mnt_sb = sb;
@@ -171,6 +176,12 @@ static void detach_mnt(struct vfsmount *mnt, struct nameidata *old_nd)
 	old_nd->dentry->d_mounted--;
 }
 
+/**
+ * 设置挂载点
+ * @mnt 目的mount
+ * @dentry 目的dentry对象
+ * @child_mnt源mount
+ */
 void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
 			struct vfsmount *child_mnt)
 {
@@ -836,8 +847,8 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 
 	spin_lock(&vfsmount_lock);
 	if (parent_nd) {
-		detach_mnt(source_mnt, parent_nd);
-		attach_mnt(source_mnt, nd);
+		detach_mnt(source_mnt, parent_nd);//先解mount
+		attach_mnt(source_mnt, nd);//再mount
 		touch_namespace(current->namespace);
 	} else {
 		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
@@ -871,9 +882,9 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 	if (err)
 		goto out_unlock;
 
-	err = -ENOENT;
+	err = -ENOENT;//文件系统根dentry不会保存在dentry cache中 所以单独判断
 	if (IS_ROOT(nd->dentry) || !d_unhashed(nd->dentry))//挂载点必须是根目录或者挂载点已经被dentry cache缓存了
-		err = attach_recursive_mnt(mnt, nd, NULL);
+		err = attach_recursive_mnt(mnt, nd, NULL);//递归
 out_unlock:
 	mutex_unlock(&nd->dentry->d_inode->i_mutex);
 	if (!err)
@@ -1085,7 +1096,8 @@ static int do_new_mount(struct nameidata *nd, char *type, int flags,
 	return do_add_mount(mnt, nd, mnt_flags, NULL);
 }
 
-/* struct nameidata *nd保存目的挂载点信息
+/**
+ * struct nameidata *nd保存目的挂载点信息
  * add a mount into a namespace's mount tree
  * - provide the option of adding the new mount to an expiration list
  */
@@ -1113,7 +1125,7 @@ int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
 		goto unlock;
 
 	newmnt->mnt_flags = mnt_flags;
-	if ((err = graft_tree(newmnt, nd)))//添加mount tree中 	
+	if ((err = graft_tree(newmnt, nd)))//添加mount tree中
 		goto unlock;
 
 	if (fslist) {
@@ -1417,7 +1429,7 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE |
 		   MS_NOATIME | MS_NODIRATIME);
 
-	/* ... and get the mountpoint */
+	/* ... and get the mountpoint   dir_name是挂载点 */
 	retval = path_lookup(dir_name, LOOKUP_FOLLOW, &nd);
 	if (retval)
 		return retval;
@@ -1426,7 +1438,7 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	if (retval)
 		goto dput_out;
 
-	if (flags & MS_REMOUNT)
+	if (flags & MS_REMOUNT) /* 重新挂载 */
 		retval = do_remount(&nd, flags & ~MS_REMOUNT, mnt_flags,
 				    data_page);
 	else if (flags & MS_BIND)
@@ -1435,7 +1447,7 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 		retval = do_change_type(&nd, flags);
 	else if (flags & MS_MOVE)
 		retval = do_move_mount(&nd, dev_name);
-	else
+	else /* 第一次挂载 */
 		retval = do_new_mount(&nd, type_page, flags, mnt_flags,
 				      dev_name, data_page);
 dput_out:
@@ -1545,7 +1557,14 @@ out:
 	put_namespace(namespace);
 	return err;
 }
-
+/**
+ * 系统调用 mount方法
+ * @dev_name 源
+ * @dir_name 目的
+ * @type     file_system_type对象的名字，可以是通过/proc/filesystems查看支持的名字
+ * @flags
+ * @data     私有数据
+ */
 asmlinkage long sys_mount(char __user * dev_name, char __user * dir_name,
 			  char __user * type, unsigned long flags,
 			  void __user * data)
@@ -1861,9 +1880,9 @@ void __init mnt_init(unsigned long mempages)
 		d++;
 		i--;
 	} while (i);
-	sysfs_init();
+	sysfs_init();//初始化sysfs文件系统
 	subsystem_register(&fs_subsys);
-	init_rootfs();
+	init_rootfs();//初始化文件系统
 	init_mount_tree();
 }
 
