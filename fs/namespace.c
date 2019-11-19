@@ -1882,7 +1882,7 @@ void __init mnt_init(unsigned long mempages)
 	} while (i);
 	sysfs_init();//初始化sysfs文件系统
 	subsystem_register(&fs_subsys);
-	init_rootfs();//初始化文件系统
+	init_rootfs();//初始化rootfs
 	init_mount_tree();
 }
 

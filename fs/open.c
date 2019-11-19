@@ -819,7 +819,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 
 	if (!open && f->f_op)
 		open = f->f_op->open;
-	if (open) {
+	if (open) {//open函数指针不空则调用 调用文件系统提供的open函数进行open操作
 		error = open(inode, f);
 		if (error)
 			goto cleanup_all;
@@ -830,7 +830,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	file_ra_state_init(&f->f_ra, f->f_mapping->host->i_mapping);
 
 	/* NB: we're sure to have correct a_ops only after f_op->open */
-	if (f->f_flags & O_DIRECT) {
+	if (f->f_flags & O_DIRECT) {//direct I/O方式
 		if (!f->f_mapping->a_ops ||
 		    ((!f->f_mapping->a_ops->direct_IO) &&
 		    (!f->f_mapping->a_ops->get_xip_page))) {
@@ -881,7 +881,7 @@ static struct file *do_filp_open(int dfd, const char *filename, int flags,
 
 	error = open_namei(dfd, filename, namei_flags, mode, &nd);
 	if (!error)
-		return nameidata_to_filp(&nd, flags);//初始化文件对象struct file
+		return nameidata_to_filp(&nd, flags);//没有错误 则初始化文件对象struct file
 
 	return ERR_PTR(error);
 }
@@ -945,7 +945,7 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 	/* Pick up the filp from the open intent */
 	filp = nd->intent.open.file;//文件描述符
 	/* Has the filesystem initialised the file for us? */
-	if (filp->f_dentry == NULL)
+	if (filp->f_dentry == NULL)//正常场景进入 if
 		filp = __dentry_open(nd->dentry, nd->mnt, flags, filp, NULL);
 	else
 		path_release(nd);
@@ -978,7 +978,7 @@ EXPORT_SYMBOL(dentry_open);
  */
 int get_unused_fd(void)
 {
-	struct files_struct * files = current->files;
+	struct files_struct * files = current->files;//获取前进程中获取
 	int fd, error;
 	struct fdtable *fdt;
 
@@ -996,7 +996,7 @@ repeat:
 	 * will limit the total number of files that can be opened.
 	 */
 	if (fd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out;
+		goto out;//超过门限
 
 	/* Do we need to expand the fd array or fd set?  */
 	error = expand_files(files, fd);
@@ -1084,12 +1084,12 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 		fd = get_unused_fd();
 		if (fd >= 0) {
 			struct file *f = do_filp_open(dfd, tmp, flags, mode);
-			if (IS_ERR(f)) {
+			if (IS_ERR(f)) {//open 文件失败 回收fd
 				put_unused_fd(fd);
 				fd = PTR_ERR(f);
-			} else {
+			} else {//open文件成功
 				fsnotify_open(f->f_dentry);
-				fd_install(fd, f);
+				fd_install(fd, f);//file结构存到当前进程中
 			}
 		}
 		putname(tmp);
@@ -1107,7 +1107,7 @@ asmlinkage long sys_open(const char __user *filename, int flags, int mode)
 	ret = do_sys_open(AT_FDCWD, filename, flags, mode);
 	/* avoid REGPARM breakage on x86: */
 	prevent_tail_call(ret);
-	return ret;
+	return ret;//返回文件句柄
 }
 EXPORT_SYMBOL_GPL(sys_open);
 

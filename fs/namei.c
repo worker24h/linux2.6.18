@@ -664,7 +664,7 @@ static int __follow_mount(struct path *path)
 		dput(path->dentry);
 		if (res)
 			mntput(path->mnt);
-		path->mnt = mounted;
+		path->mnt = mounted;//替换成真正的挂载点对象
 		path->dentry = dget(mounted->mnt_root);
 		res = 1;
 	}
@@ -748,7 +748,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 		     struct path *path)
 {
 	struct vfsmount *mnt = nd->mnt;
-	struct dentry *dentry = __d_lookup(nd->dentry, name);
+	struct dentry *dentry = __d_lookup(nd->dentry, name);//在dentry中查找name
 
 	if (!dentry)
 		goto need_lookup;
@@ -757,10 +757,10 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 done:
 	path->mnt = mnt;
 	path->dentry = dentry;
-	__follow_mount(path);
+	__follow_mount(path);//处理挂载点
 	return 0;
 
-need_lookup:
+need_lookup: //cache dentry中没有则调用系统文件提供lookup方法进行查找
 	dentry = real_lookup(nd->dentry, name, nd);
 	if (IS_ERR(dentry))
 		goto fail;
@@ -795,14 +795,14 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 	
 	while (*name=='/')
 		name++;
-	if (!*name)
+	if (!*name)//表示查找是根目录
 		goto return_reval;
 
 	inode = nd->dentry->d_inode;
 	if (nd->depth)
 		lookup_flags = LOOKUP_FOLLOW | (nd->flags & LOOKUP_CONTINUE);
 
-	/* At this point we know we have a real path component. */
+	/* At this point we know we have a real path component. 用循环代替递归调用 */
 	for(;;) {
 		unsigned long hash;
 		struct qstr this;
@@ -817,7 +817,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 
 		this.name = name;
 		c = *(const unsigned char *)name;
-
+		//按照'/' 进行路径切割 然后构建hash
 		hash = init_name_hash();
 		do {
 			name++;
@@ -828,23 +828,27 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 		this.hash = end_name_hash(hash);
 
 		/* remove trailing slashes? */
-		if (!c)
+		if (!c)//表示路径已经完全遍历了一边
 			goto last_component;
 		while (*++name == '/');
-		if (!*name)
+		if (!*name)//进入这个场景说明路径最后有很多/
 			goto last_with_slashes;
 
 		/*
 		 * "." and ".." are special - ".." especially so because it has
 		 * to be able to know about the current root directory and
 		 * parent relationships.
+		 * 这里有三中场景： 
+		 * 1) .  表示当前目录
+		 * 2) .. 表示上一级目录
+		 * 3) .xxx 表示隐藏文件
 		 */
 		if (this.name[0] == '.') switch (this.len) {
 			default:
-				break;
+				break;//隐藏文件
 			case 2:	
 				if (this.name[1] != '.')
-					break;
+					break;//隐藏文件
 				follow_dotdot(nd);
 				inode = nd->dentry->d_inode;
 				/* fallthrough */
@@ -873,7 +877,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 		if (!inode->i_op)
 			goto out_dput;
 
-		if (inode->i_op->follow_link) {
+		if (inode->i_op->follow_link) {//软链接处理
 			err = do_follow_link(&next, nd);
 			if (err)
 				goto return_err;
@@ -881,7 +885,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 			inode = nd->dentry->d_inode;
 			if (!inode)
 				break;
-			err = -ENOTDIR; 
+			err = -ENOTDIR; //表示不是目录
 			if (!inode->i_op)
 				break;
 		} else
@@ -889,13 +893,13 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 		err = -ENOTDIR; 
 		if (!inode->i_op->lookup)
 			break;
-		continue;
+		continue;//再次查找
 		/* here ends the main loop */
 
-last_with_slashes:
+last_with_slashes: //表明最后一个字符是'/'
 		lookup_flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 last_component:
-		/* Clear LOOKUP_CONTINUE iff it was previously unset */
+		/*表示最后一部分 后面再也没有路径了 Clear LOOKUP_CONTINUE iff it was previously unset */
 		nd->flags &= lookup_flags | ~LOOKUP_CONTINUE;
 		if (lookup_flags & LOOKUP_PARENT)
 			goto lookup_parent;
@@ -916,7 +920,7 @@ last_component:
 			if (err < 0)
 				break;
 		}
-		err = do_lookup(nd, &this, &next);
+		err = do_lookup(nd, &this, &next);/* 查找最终文件 This does the actual lookups.. */
 		if (err)
 			break;
 		inode = next.dentry->d_inode;
@@ -1105,7 +1109,7 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 		nd->mnt = mntget(current->fs->pwdmnt);
 		nd->dentry = dget(current->fs->pwd);
 		read_unlock(&current->fs->lock);
-	} else {//说明文件已经打开了
+	} else {//说明文件已经打开了 被保存在进程下 这里dfd是文件句柄
 		struct dentry *dentry;
 
 		file = fget_light(dfd, &fput_needed);
@@ -1161,7 +1165,7 @@ static int __path_lookup_intent_open(int dfd, const char *name,
 		return -ENFILE;
 	nd->intent.open.file = filp;
 	nd->intent.open.flags = open_flags;
-	nd->intent.open.create_mode = create_mode;
+	nd->intent.open.create_mode = create_mode;//文件读写权限
 	err = do_path_lookup(dfd, name, lookup_flags|LOOKUP_OPEN, nd);
 	if (IS_ERR(nd->intent.open.file)) {
 		if (err == 0) {
@@ -1271,7 +1275,7 @@ static struct dentry *lookup_hash(struct nameidata *nd)
  * SMP-safe 
  * @name 要查找dentry 
  * @base 父dentry对象，即基于父dentry进行查找 
- * @len代表name长度 
+ * @len  代表name长度 
  */
 struct dentry * lookup_one_len(const char * name, struct dentry * base, int len)
 {
@@ -1585,6 +1589,7 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
  * which is a lot more logical, and also allows the "no perm" needed
  * for symlinks (where the permissions are checked later).
  * SMP-safe
+ * 此函数需要对nd进行赋值
  */
 int open_namei(int dfd, const char *pathname, int flag,
 		int mode, struct nameidata *nd)
@@ -1608,7 +1613,7 @@ int open_namei(int dfd, const char *pathname, int flag,
 	/*
 	 * The simplest case - just a plain lookup.
 	 */
-	if (!(flag & O_CREAT)) {
+	if (!(flag & O_CREAT)) {//没有O_CREATE标志 表示仅仅查找
 		error = path_lookup_open(dfd, pathname, lookup_flags(flag),
 					 nd, flag);
 		if (error)

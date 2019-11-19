@@ -14,8 +14,8 @@ struct open_intent {
 enum { MAX_NESTED_LINKS = 8 };
 
 struct nameidata {
-	struct dentry	*dentry;
-	struct vfsmount *mnt;
+	struct dentry	*dentry; /* 当前文件所在目录dentry对象 */
+	struct vfsmount *mnt;/* 当前文件挂在的vfsmount对象 */
 	struct qstr	last;
 	unsigned int	flags;
 	int		last_type; /* 取值 LAST_NORM LAST_ROOT*/

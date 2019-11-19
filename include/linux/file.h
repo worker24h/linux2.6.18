@@ -30,13 +30,15 @@ struct embedded_fd_set {
  * More than this number of fds: we use a separately allocated fd_set
  */
 #define EMBEDDED_FD_SET_SIZE (BITS_PER_BYTE * sizeof(struct embedded_fd_set)) //default 8*8=64
-
+/**
+ * fd映射表
+ */
 struct fdtable {
 	unsigned int max_fds;
 	int max_fdset;
-	struct file ** fd;      /* current fd array */
+	struct file ** fd;      /* 参考函数open.c fd_install current fd array 文件对象file数组，下标是fd vlaue是struct file对象*/
 	fd_set *close_on_exec;/* 已经关闭的文件句柄 */
-	fd_set *open_fds; /* 打开的文件句柄 */
+	fd_set *open_fds; /* 打开的文件句柄 __kernel_fd_set */
 	struct rcu_head rcu;
 	struct files_struct *free_files;
 	struct fdtable *next;
