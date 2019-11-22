@@ -37,7 +37,7 @@ static int populate_dir(struct kobject * kobj)
 	
 	if (t && t->default_attrs) {
 		for (i = 0; (attr = t->default_attrs[i]) != NULL; i++) {
-			if ((error = sysfs_create_file(kobj,attr)))
+			if ((error = sysfs_create_file(kobj,attr)))//表示存在属性文件 则需要创建
 				break;
 		}
 	}
@@ -382,7 +382,7 @@ static void kobject_release(struct kref *kref)
 void kobject_put(struct kobject * kobj)
 {
 	if (kobj)
-		kref_put(&kobj->kref, kobject_release);
+		kref_put(&kobj->kref, kobject_release);//kref.c
 }
 
 

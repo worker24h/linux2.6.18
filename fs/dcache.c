@@ -73,7 +73,7 @@ static void d_callback(struct rcu_head *head)
 
 	if (dname_external(dentry))
 		kfree(dentry->d_name.name);
-	kmem_cache_free(dentry_cache, dentry); 
+	kmem_cache_free(dentry_cache, dentry); //释放内存
 }
 
 /*
@@ -83,7 +83,7 @@ static void d_callback(struct rcu_head *head)
 static void d_free(struct dentry *dentry)
 {
 	if (dentry->d_op && dentry->d_op->d_release)
-		dentry->d_op->d_release(dentry);
+		dentry->d_op->d_release(dentry);//主要用于释放dentry->fsdata数据
  	call_rcu(&dentry->d_u.d_rcu, d_callback);
 }
 
@@ -95,7 +95,7 @@ static void d_free(struct dentry *dentry)
 static void dentry_iput(struct dentry * dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	if (inode) {
+	if (inode) {//处理当前dentry关联inode
 		dentry->d_inode = NULL;
 		list_del_init(&dentry->d_alias);
 		spin_unlock(&dentry->d_lock);
@@ -153,7 +153,7 @@ repeat:
 		return;
 
 	spin_lock(&dentry->d_lock);
-	if (atomic_read(&dentry->d_count)) {
+	if (atomic_read(&dentry->d_count)) {//任然被引用 所以不能释放
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&dcache_lock);
 		return;
@@ -167,7 +167,7 @@ repeat:
 			goto unhash_it;
 	}
 	/* Unreachable? Get rid of it */
- 	if (d_unhashed(dentry))
+ 	if (d_unhashed(dentry))//返回非0表示 没有在hashtable中缓存
 		goto kill_it;
   	if (list_empty(&dentry->d_lru)) {
   		dentry->d_flags |= DCACHE_REFERENCED;

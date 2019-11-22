@@ -128,7 +128,7 @@ static struct kobj_type ktype_bus = {
 	.sysfs_ops	= &bus_sysfs_ops,
 
 };
-
+//定义全局遍历 bus_subsys
 static decl_subsys(bus, &ktype_bus, NULL);
 
 
@@ -686,22 +686,24 @@ int bus_register(struct bus_type * bus)
 	retval = kobject_set_name(&bus->subsys.kset.kobj, "%s", bus->name);
 	if (retval)
 		goto out;
-
+	
+	// #define subsys_set_kset(obj,_subsys) \
+	//    (obj)->subsys.kset.kobj.kset = &(_subsys).kset
 	subsys_set_kset(bus, bus_subsys);
-	retval = subsystem_register(&bus->subsys);
+	retval = subsystem_register(&bus->subsys);//注册bus子系统 使用subsystem_register
 	if (retval)
 		goto out;
-
+	//注册devices 相当于在platform下面创建devices目录
 	kobject_set_name(&bus->devices.kobj, "devices");
 	bus->devices.subsys = &bus->subsys;
-	retval = kset_register(&bus->devices);
+	retval = kset_register(&bus->devices);//注册bus内设备对象 使用kset_register
 	if (retval)
 		goto bus_devices_fail;
-
+	//注册drivers 相当于在platform下面创建drivers目录
 	kobject_set_name(&bus->drivers.kobj, "drivers");
 	bus->drivers.subsys = &bus->subsys;
 	bus->drivers.ktype = &ktype_driver;
-	retval = kset_register(&bus->drivers);
+	retval = kset_register(&bus->drivers);//注册bus内驱动对象 使用kset_register
 	if (retval)
 		goto bus_drivers_fail;
 

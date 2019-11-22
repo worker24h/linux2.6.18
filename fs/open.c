@@ -820,7 +820,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	if (!open && f->f_op)
 		open = f->f_op->open;
 	if (open) {//open函数指针不空则调用 调用文件系统提供的open函数进行open操作
-		error = open(inode, f);
+		error = open(inode, f);//例如sysfs文件系统：sysfs_open_file
 		if (error)
 			goto cleanup_all;
 	}
@@ -1089,7 +1089,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 				fd = PTR_ERR(f);
 			} else {//open文件成功
 				fsnotify_open(f->f_dentry);
-				fd_install(fd, f);//file结构存到当前进程中
+				fd_install(fd, f);//fd 和 struct file关联 并存到当前进程中
 			}
 		}
 		putname(tmp);

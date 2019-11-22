@@ -1093,7 +1093,7 @@ static void generic_forget_inode(struct inode *inode)
  */
 void generic_drop_inode(struct inode *inode)
 {
-	if (!inode->i_nlink)
+	if (!inode->i_nlink)//i_nlink为0 则正常删除
 		generic_delete_inode(inode);
 	else
 		generic_forget_inode(inode);
@@ -1398,15 +1398,15 @@ void __init inode_init(unsigned long mempages)
 void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
 {
 	inode->i_mode = mode;
-	if (S_ISCHR(mode)) {
+	if (S_ISCHR(mode)) {//字符设备
 		inode->i_fop = &def_chr_fops;
 		inode->i_rdev = rdev;
-	} else if (S_ISBLK(mode)) {
+	} else if (S_ISBLK(mode)) {//块设备
 		inode->i_fop = &def_blk_fops;
 		inode->i_rdev = rdev;
-	} else if (S_ISFIFO(mode))
+	} else if (S_ISFIFO(mode)) //队列设备
 		inode->i_fop = &def_fifo_fops;
-	else if (S_ISSOCK(mode))
+	else if (S_ISSOCK(mode))//网络设备
 		inode->i_fop = &bad_sock_fops;
 	else
 		printk(KERN_DEBUG "init_special_inode: bogus i_mode (%o)\n",

@@ -65,16 +65,16 @@ struct sysfs_ops {
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
 };
 /**
- * 专用于sysfs文件系统dirent对象
+ * sysfs文件系统 目录对象
  */
 struct sysfs_dirent {
 	atomic_t		s_count;
-	struct list_head	s_sibling;
-	struct list_head	s_children;
-	void 			* s_element;
-	int			s_type;
+	struct list_head	s_sibling;//兄弟节点  该变量用于插入到父节点下s_children中，可参考sysfs_new_dirent
+	struct list_head	s_children;//孩子节点
+	void 			* s_element;//根据s_type不同 取值不同可参考函数sysfs_get_name
+	int			s_type;//取值SYSFS_ROOT SYSFS_DIR等
 	umode_t			s_mode;
-	struct dentry		* s_dentry;
+	struct dentry		* s_dentry;//封装
 	struct iattr		* s_iattr;
 	atomic_t		s_event;
 };

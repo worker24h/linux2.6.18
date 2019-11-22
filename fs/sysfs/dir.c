@@ -45,7 +45,7 @@ static struct sysfs_dirent * sysfs_new_dirent(struct sysfs_dirent * parent_sd,
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_event, 0);
 	INIT_LIST_HEAD(&sd->s_children);
-	list_add(&sd->s_sibling, &parent_sd->s_children);
+	list_add(&sd->s_sibling, &parent_sd->s_children);//插入到父节点中
 	sd->s_element = element;
 
 	return sd;
@@ -76,7 +76,14 @@ int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
 	return 0;
 }
 
-
+/**
+ * 创建sysfs_dirent对象
+ * @parent_sd 父节点
+ * @dentry 要创建sysfs_dirent对象需要绑定一个dentry对象
+ * @element 私有数据 此处实际为 kobject
+ * @mode 文件属性：可读、可写、可执行等
+ * @type 文件类型： SYSFS_DIR, SYSFS_KOBJ_ATTR
+ */
 int sysfs_make_dirent(struct sysfs_dirent * parent_sd, struct dentry * dentry,
 			void * element, umode_t mode, int type)
 {
@@ -120,6 +127,13 @@ static int init_symlink(struct inode * inode)
 	return 0;
 }
 
+/**
+ * 为sysfs文件系统创建dentry对象
+ * @k kobject对象
+ * @p 父dentry对象
+ * @n 目录名字
+ * @d 输出参数 新dentry对象
+ */
 static int create_dir(struct kobject * k, struct dentry * p,
 		      const char * n, struct dentry ** d)
 {
@@ -127,22 +141,22 @@ static int create_dir(struct kobject * k, struct dentry * p,
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
 
 	mutex_lock(&p->d_inode->i_mutex);
-	*d = lookup_one_len(n, p, strlen(n));
+	*d = lookup_one_len(n, p, strlen(n));//按照名字查找 存在则返回 不存在则创建
 	if (!IS_ERR(*d)) {
- 		if (sysfs_dirent_exist(p->d_fsdata, n))
+ 		if (sysfs_dirent_exist(p->d_fsdata, n))//判断sysfs_dirent对象是否存在
   			error = -EEXIST;
   		else
 			error = sysfs_make_dirent(p->d_fsdata, *d, k, mode,
 								SYSFS_DIR);
 		if (!error) {
-			error = sysfs_create(*d, mode, init_dir);
+			error = sysfs_create(*d, mode, init_dir);//为dentry创建inode对象
 			if (!error) {
 				p->d_inode->i_nlink++;
 				(*d)->d_op = &sysfs_dentry_ops;
-				d_rehash(*d);
+				d_rehash(*d);//存储到dentry cache中
 			}
 		}
-		if (error && (error != -EEXIST)) {
+		if (error && (error != -EEXIST)) {//回收资源
 			struct sysfs_dirent *sd = (*d)->d_fsdata;
 			if (sd) {
  				list_del_init(&sd->s_sibling);
@@ -178,9 +192,9 @@ int sysfs_create_dir(struct kobject * kobj)
 	BUG_ON(!kobj);
 
 	if (kobj->parent)
-		parent = kobj->parent->dentry;
+		parent = kobj->parent->dentry;//获取父kobject所在的dentry 做为parent
 	else if (sysfs_mount && sysfs_mount->mnt_sb)
-		parent = sysfs_mount->mnt_sb->s_root;
+		parent = sysfs_mount->mnt_sb->s_root;//将sysfs根dentry 做为parent
 	else
 		return -EFAULT;
 
@@ -197,7 +211,7 @@ static int sysfs_attach_attr(struct sysfs_dirent * sd, struct dentry * dentry)
 {
 	struct attribute * attr = NULL;
 	struct bin_attribute * bin_attr = NULL;
-	int (* init) (struct inode *) = NULL;
+	int (* init) (struct inode *) = NULL;//初始化inode函数指针
 	int error = 0;
 
         if (sd->s_type & SYSFS_KOBJ_BIN_ATTR) {
@@ -242,6 +256,9 @@ static int sysfs_attach_link(struct sysfs_dirent * sd, struct dentry * dentry)
 	return err;
 }
 
+/**
+ * 进入这个函数说明 要处理的是文件而不是目录
+ */
 static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 				struct nameidata *nd)
 {
@@ -250,16 +267,16 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	int err = 0;
 
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
-		if (sd->s_type & SYSFS_NOT_PINNED) {
+		if (sd->s_type & SYSFS_NOT_PINNED) {//只处理文件
 			const unsigned char * name = sysfs_get_name(sd);
 
-			if (strcmp(name, dentry->d_name.name))
+			if (strcmp(name, dentry->d_name.name))//strcmp相等返回0 非0表示不等
 				continue;
 
 			if (sd->s_type & SYSFS_KOBJ_LINK)
-				err = sysfs_attach_link(sd, dentry);
+				err = sysfs_attach_link(sd, dentry);//软连接文件
 			else
-				err = sysfs_attach_attr(sd, dentry);
+				err = sysfs_attach_attr(sd, dentry);//普通文件
 			break;
 		}
 	}

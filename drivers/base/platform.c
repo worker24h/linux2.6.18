@@ -534,11 +534,11 @@ struct bus_type platform_bus_type = {
 	.resume		= platform_resume,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
-
+//platform总线注册
 int __init platform_bus_init(void)
 {
-	device_register(&platform_bus);
-	return bus_register(&platform_bus_type);
+	device_register(&platform_bus);//设备注册
+	return bus_register(&platform_bus_type);//总线注册
 }
 
 #ifndef ARCH_HAS_DMA_GET_REQUIRED_MASK

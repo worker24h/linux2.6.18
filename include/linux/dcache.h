@@ -106,7 +106,7 @@ struct dentry {
 	unsigned long d_time;		/* used by d_revalidate */
 	struct dentry_operations *d_op;
 	struct super_block *d_sb;	/* The root of the dentry tree */
-	void *d_fsdata;			/* fs-specific data 文件系统私有数据 例如sysfs，这里是sysfs_root*/
+	void *d_fsdata;			/* fs-specific data 文件系统私有数据 例如sysfs，这里是sysfs_dirent*/
 #ifdef CONFIG_PROFILING
 	struct dcookie_struct *d_cookie; /* cookie, if any */
 #endif

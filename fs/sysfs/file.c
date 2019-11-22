@@ -52,11 +52,13 @@ static struct sysfs_ops subsys_sysfs_ops = {
 
 
 struct sysfs_buffer {
-	size_t			count;
+	size_t			count;//实际内容
 	loff_t			pos;
-	char			* page;
+	char			* page;//4KB大小
 	struct sysfs_ops	* ops;
 	struct semaphore	sem;
+	//1 --> 0: 表示buffer中没有数据，应该去读取
+	//0 --> 1: 表示buffer中有数据，应该用于输出
 	int			needs_read_fill;
 	int			event;
 };
@@ -82,13 +84,13 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 	ssize_t count;
 
 	if (!buffer->page)
-		buffer->page = (char *) get_zeroed_page(GFP_KERNEL);
+		buffer->page = (char *) get_zeroed_page(GFP_KERNEL);//申请一页大小的内存
 	if (!buffer->page)
 		return -ENOMEM;
 
 	buffer->event = atomic_read(&sd->s_event);
 	count = ops->show(kobj,attr,buffer->page);
-	buffer->needs_read_fill = 0;
+	buffer->needs_read_fill = 0;//表示已经存在数据
 	BUG_ON(count > (ssize_t)PAGE_SIZE);
 	if (count >= 0)
 		buffer->count = count;
@@ -120,10 +122,10 @@ static int flush_read_buffer(struct sysfs_buffer * buffer, char __user * buf,
 
 	if (count > (buffer->count - *ppos))
 		count = buffer->count - *ppos;
-
+	//拷贝到用户空间中
 	error = copy_to_user(buf,buffer->page + *ppos,count);
 	if (!error)
-		*ppos += count;
+		*ppos += count;//修改偏移量
 	return error ? -EFAULT : count;
 }
 
@@ -153,7 +155,7 @@ sysfs_read_file(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	ssize_t retval = 0;
 
 	down(&buffer->sem);
-	if (buffer->needs_read_fill) {
+	if (buffer->needs_read_fill) {//在check_perm的时候 needs_read_fill被赋值为1
 		if ((retval = fill_read_buffer(file->f_dentry,buffer)))
 			goto out;
 	}
@@ -188,7 +190,7 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 
 	if (count >= PAGE_SIZE)
 		count = PAGE_SIZE - 1;
-	error = copy_from_user(buffer->page,buf,count);
+	error = copy_from_user(buffer->page,buf,count);//从用户空间写入到buffer中
 	buffer->needs_read_fill = 1;
 	return error ? -EFAULT : count;
 }
@@ -212,7 +214,7 @@ flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t 
 	struct kobject * kobj = to_kobj(dentry->d_parent);
 	struct sysfs_ops * ops = buffer->ops;
 
-	return ops->store(kobj,attr,buffer->page,count);
+	return ops->store(kobj,attr,buffer->page,count);//真正写入
 }
 
 
@@ -251,6 +253,8 @@ sysfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t
 
 static int check_perm(struct inode * inode, struct file * file)
 {
+	//从struct dentry对中d_fsdata成员获取 struct sysfs_dirent对象 再从
+	//sysfs_dirent对象中获取kobject对象
 	struct kobject *kobj = sysfs_get_kobject(file->f_dentry->d_parent);
 	struct attribute * attr = to_attr(file->f_dentry);
 	struct sysfs_buffer * buffer;
@@ -268,13 +272,17 @@ static int check_perm(struct inode * inode, struct file * file)
 
 	/* if the kobject has no ktype, then we assume that it is a subsystem
 	 * itself, and use ops for it.
+	 * 真正读写文件 需要sysfs子系统来处理 /sys/目录下面所有目录都属于sysfs子系统
+	 * 通过decl_subsys decl_subsys_name 两个宏来声明sysfs子系统
+	 * 子系统注册一定会通过：subsystem_register函数来注册，可以通过搜索该关键字进行确定
+	 * 例如：drivers/base/core.c 注册devices
 	 */
 	if (kobj->kset && kobj->kset->ktype)
 		ops = kobj->kset->ktype->sysfs_ops;
 	else if (kobj->ktype)
 		ops = kobj->ktype->sysfs_ops;
 	else
-		ops = &subsys_sysfs_ops;
+		ops = &subsys_sysfs_ops;//设置sysfs子系统读写函数为默认
 
 	/* No sysfs operations, either from having no subsystem,
 	 * or the subsystem have no operations.
@@ -285,6 +293,7 @@ static int check_perm(struct inode * inode, struct file * file)
 	/* File needs write support.
 	 * The inode's perms must say it's ok, 
 	 * and we must have a store method.
+	 * 检查写权限
 	 */
 	if (file->f_mode & FMODE_WRITE) {
 
@@ -296,6 +305,7 @@ static int check_perm(struct inode * inode, struct file * file)
 	/* File needs read support.
 	 * The inode's perms must say it's ok, and we there
 	 * must be a show method for it.
+	 * 检查读权限
 	 */
 	if (file->f_mode & FMODE_READ) {
 		if (!(inode->i_mode & S_IRUGO) || !ops->show)
@@ -327,6 +337,18 @@ static int check_perm(struct inode * inode, struct file * file)
 	return error;
 }
 
+/**
+ * 注意：
+ * sysfs文件系统 在调用sysfs_create_file的时只创建struct dirent对象，并没有创建
+ * struct dentry和struct inode对象，而是推迟到open file时才创建这两个对象
+ * 但是我们在阅读sys_open_file里面并没有发现创建struct dentry、struct inode对象
+ * 其实在调用sys_open_file之前就已经把这两个对象创建好了
+ * 系统调用sys_open-->do_filp_open
+ *                    | -->open_namei-->do_path_lookup-->link_path_walk-->do_lookup-->real_lookup（这里创建struct dentry）-->
+ *                    |              sysfs_lookup-->sysfs_attach_attr-->sysfs_create(这里创建inode)
+ *                    | -->nameidata_to_filp-->__dentry_open--> open --> sysfs_open
+ * sysfs有普通文件和二进制文件，这里是普通文件处理方法，二进制文件可参考sysfs/bin.c
+ */
 static int sysfs_open_file(struct inode * inode, struct file * filp)
 {
 	return check_perm(inode,filp);
@@ -423,6 +445,9 @@ void sysfs_notify(struct kobject * k, char *dir, char *attr)
 }
 EXPORT_SYMBOL_GPL(sysfs_notify);
 
+/**
+ * syfs文件系统 文件操作函数
+ */
 const struct file_operations sysfs_file_operations = {
 	.read		= sysfs_read_file,
 	.write		= sysfs_write_file,
@@ -432,13 +457,22 @@ const struct file_operations sysfs_file_operations = {
 	.poll		= sysfs_poll,
 };
 
-
+/**
+ * 在dir目录下面创建一个文件
+ * @dir 目录
+ * @attr 文件属性
+ * @type 类型 取值为SYSFS_KOBJ_ATTR、SYSFS_KOBJ_BIN_ATTR等
+ */
 int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
 {
 	struct sysfs_dirent * parent_sd = dir->d_fsdata;
-	umode_t mode = (attr->mode & S_IALLUGO) | S_IFREG;
+	umode_t mode = (attr->mode & S_IALLUGO) | S_IFREG;//常规文件
 	int error = -EEXIST;
-
+	/**
+	 * 注意：sysfs文件系统在创建文件的时候只创建了struct dirent对象
+	 *      但并没有创建dentry和inode 那么在什么地方创建呢？
+	 * 答案：在打开文件的时候创建dentry和inode
+	 */
 	mutex_lock(&dir->d_inode->i_mutex);
 	if (!sysfs_dirent_exist(parent_sd, attr->name))
 		error = sysfs_make_dirent(parent_sd, NULL, (void *)attr,
@@ -453,8 +487,8 @@ int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
  *	sysfs_create_file - create an attribute file for an object.
  *	@kobj:	object we're creating for. 
  *	@attr:	atrribute descriptor.
+ *	为sysfs文件系统中创建一个属性文件
  */
-
 int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
 {
 	BUG_ON(!kobj || !kobj->dentry || !attr);

@@ -35,9 +35,9 @@ struct class_device;
 struct bus_type {
 	const char		* name;
 
-	struct subsystem	subsys;
-	struct kset		drivers;
-	struct kset		devices;
+	struct subsystem	subsys;//sys 子系统
+	struct kset		drivers;//驱动
+	struct kset		devices;//设备
 	struct klist		klist_devices;
 	struct klist		klist_drivers;
 

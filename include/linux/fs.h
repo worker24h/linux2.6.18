@@ -682,7 +682,7 @@ struct file {
 	const struct file_operations	*f_op;
 	atomic_t		f_count;
 	unsigned int 		f_flags;
-	mode_t			f_mode;
+	mode_t			f_mode;//取值 FMODE_READ、FMODE_READ
 	loff_t			f_pos;
 	struct fown_struct	f_owner;
 	unsigned int		f_uid, f_gid;

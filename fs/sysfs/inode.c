@@ -122,7 +122,7 @@ static struct lock_class_key sysfs_inode_imutex_key;
 
 struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent * sd)
 {
-	struct inode * inode = new_inode(sysfs_sb);
+	struct inode * inode = new_inode(sysfs_sb);//sysfs_sb是超级块
 	if (inode) {
 		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
@@ -143,10 +143,16 @@ struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent * sd)
 	return inode;
 }
 
+/**
+ * 为dentry对象创建inode
+ * @dentry dentry对象
+ * @mode   目录属性
+ * @init   回调函数 用于初始化inode
+ */
 int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 {
 	int error = 0;
-	struct inode * inode = NULL;
+	struct inode * inode = NULL;//创建inode节点
 	if (dentry) {
 		if (!dentry->d_inode) {
 			struct sysfs_dirent * sd = dentry->d_fsdata;
@@ -167,9 +173,9 @@ int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 
  Proceed:
 	if (init)
-		error = init(inode);
+		error = init(inode);//初始化inode
 	if (!error) {
-		d_instantiate(dentry, inode);
+		d_instantiate(dentry, inode); //inode和dentry关联
 		if (S_ISDIR(mode))
 			dget(dentry);  /* pin only directory dentry in core */
 	} else

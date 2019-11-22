@@ -533,7 +533,7 @@ int device_for_each_child(struct device * parent, void * data,
 
 int __init devices_init(void)
 {
-	return subsystem_register(&devices_subsys);
+	return subsystem_register(&devices_subsys);//注册到sysfs文件系统下，作为子系统
 }
 
 EXPORT_SYMBOL_GPL(device_for_each_child);

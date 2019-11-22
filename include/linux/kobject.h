@@ -49,9 +49,9 @@ enum kobject_action {
 };
 
 struct kobject {
-	const char		* k_name;
-	char			name[KOBJ_NAME_LEN];
-	struct kref		kref;
+	const char		* k_name;//目录名字 例如：子系统platform
+	char			name[KOBJ_NAME_LEN];//和上面k_name数据一样 KOBJ_NAME_LEN = 20
+	struct kref		kref;//kref.h
 	struct list_head	entry;
 	struct kobject		* parent;
 	struct kset		* kset;
